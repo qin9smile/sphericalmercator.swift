@@ -83,6 +83,32 @@ class SphericalMercator {
     return bounds
   }
 
+  /// Convert bbounds to xyz bounds
+  func xyz(bbox: Bounds, zoom: Int, tmsStyle: Bool, srs: String) -> XYZBounds {
+    var _bbox = bbox
+    if srs == "900913" {
+      _bbox = convert(bbox, to: "WGS84")
+    }
+
+    let px_ll = px(coordinate: bbox.ws, zoom: zoom)!
+    let px_ur = px(coordinate: bbox.en, zoom: zoom)!
+
+    // Y = 0 for XYZ is the top hency minY use px_ur.y
+    let x = [floor(px_ll.x / size), floor((px_ur.x - 1) / size)]
+    let y = [floor(px_ur.y / size), floor((px_ll.y - 1) / size)]
+
+    let xyzBounds = XYZBounds(minPoint: Point(x: x.min()! < 0 ? 0 : x.min()!, y: y.min()! < 0 ? 0 : y.min()!), maxPoint: Point(x: x.max()!, y: y.max()!))
+
+    if tmsStyle {
+      let minY = Double(truncating: NSDecimalNumber(decimal: pow(2, zoom))) - 1 - xyzBounds.maxPoint.y
+      let maxY = Double(truncating: NSDecimalNumber(decimal: pow(2, zoom))) - 1 - xyzBounds.minPoint.y
+      xyzBounds.minPoint.y = minY
+      xyzBounds.maxPoint.y = maxY
+    }
+
+    return xyzBounds
+  }
+
   /// Convert projection of given bbox
   func convert(_ bounds: Bounds, to srs: String) -> Bounds {
     if srs == "900913" {
