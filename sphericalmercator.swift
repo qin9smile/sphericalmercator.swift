@@ -19,6 +19,36 @@ class SphericalMercator {
     var Ac: [Double] = []
   }
 
+  class Bounds {
+    var ws: CLLocationCoordinate2D
+    var en: CLLocationCoordinate2D
+
+    public init(ws: CLLocationCoordinate2D, en: CLLocationCoordinate2D) {
+      self.ws = ws
+      self.en = en
+    }
+  }
+
+  class XYZBounds {
+    var minPoint: Point
+    var maxPoint: Point
+
+    public init(minPoint: Point, maxPoint: Point) {
+      self.minPoint = minPoint
+      self.maxPoint = maxPoint
+    }
+  }
+
+  class Point {
+    var x: Double
+    var y: Double
+
+    public init(x: Double, y: Double) {
+      self.x = x
+      self.y = y
+    }
+  }
+
   public init() {
     self.size = 256;
     if cache[self.size] == nil {
@@ -36,7 +66,7 @@ class SphericalMercator {
   }
 
   /// Convert lon lat to screen pixel value
-  func px(coordinate: CLLocationCoordinate2D, zoom: Int) -> CGPoint? {
+  func px(coordinate: CLLocationCoordinate2D, zoom: Int) -> Point? {
     guard let cacheSize = cache[size] else {
       return nil
     }
@@ -52,11 +82,11 @@ class SphericalMercator {
     if y > cacheSize.Ac[zoom] {
       y = cacheSize.Ac[zoom]
     }
-    return CGPoint(x: x, y: y)
+    return Point(x: x, y: y)
   }
 
   /// Convert screen pixel value to Coordinate
-  func ll(px: CGPoint, zoom: Int) -> CLLocationCoordinate2D? {
+  func ll(px: Point, zoom: Int) -> CLLocationCoordinate2D? {
     guard let cacheSize = cache[size] else {
       return nil
     }
@@ -66,7 +96,6 @@ class SphericalMercator {
     return CLLocationCoordinate2D.init(latitude: latitude, longitude: longitude)
   }
 
-
   /// Convert tile xyz value to Bounds of the form
   func bbox(x: Double, y: Double, zoom: Int, tmsStyle: Bool, srs: String) -> Bounds {
     var _y = y
@@ -74,8 +103,8 @@ class SphericalMercator {
       _y = (Double(truncating: NSDecimalNumber(decimal: pow(2, zoom))) - 1) - y
     }
 
-    let ws = ll(px: CGPoint(x: x * size, y: (+_y + 1) * size), zoom: zoom)!
-    let en = ll(px: CGPoint(x: (+x + 1) * size, y: _y * size), zoom: zoom)!
+    let ws = ll(px: Point(x: x * size, y: (+_y + 1) * size), zoom: zoom)!
+    let en = ll(px: Point(x: (+x + 1) * size, y: _y * size), zoom: zoom)!
     let bounds = Bounds(ws: ws, en: en)
     if srs == "900913" {
       return convert(bounds, to: "900913")
@@ -90,8 +119,8 @@ class SphericalMercator {
       _bbox = convert(bbox, to: "WGS84")
     }
 
-    let px_ll = px(coordinate: bbox.ws, zoom: zoom)!
-    let px_ur = px(coordinate: bbox.en, zoom: zoom)!
+    let px_ll = px(coordinate: _bbox.ws, zoom: zoom)!
+    let px_ur = px(coordinate: _bbox.en, zoom: zoom)!
 
     // Y = 0 for XYZ is the top hency minY use px_ur.y
     let x = [floor(px_ll.x / size), floor((px_ur.x - 1) / size)]
@@ -112,13 +141,17 @@ class SphericalMercator {
   /// Convert projection of given bbox
   func convert(_ bounds: Bounds, to srs: String) -> Bounds {
     if srs == "900913" {
-      return Bounds()
+      let point1 = forward(bounds.ws)
+      let point2 = forward(bounds.en)
+      return Bounds(ws: CLLocationCoordinate2D(latitude: point1.x, longitude: point1.y), en: CLLocationCoordinate2D(latitude: point2.x, longitude: point2.y))
     } else {
-      return Bounds()
+      let point1 = inverse(Point(x: bounds.ws.latitude, y: bounds.ws.longitude))
+      let point2 = inverse(Point(x: bounds.en.latitude, y: bounds.en.longitude))
+      return Bounds(ws: point1, en: point2)
     }
   }
 
-   // Convert Coordinate to 900913 Point
+  // Convert Coordinate to 900913 Point
   func forward(_ coordinate: CLLocationCoordinate2D) -> Point {
     let point = Point(x: A * coordinate.longitude * D2R,
                       y: A * log(tan(Double.pi * 0.25 + 0.5 * coordinate.latitude * D2R)))
