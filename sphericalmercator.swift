@@ -91,4 +91,30 @@ class SphericalMercator {
       return Bounds()
     }
   }
+
+   // Convert Coordinate to 900913 Point
+  func forward(_ coordinate: CLLocationCoordinate2D) -> Point {
+    let point = Point(x: A * coordinate.longitude * D2R,
+                      y: A * log(tan(Double.pi * 0.25 + 0.5 * coordinate.latitude * D2R)))
+
+    // if xy value is beyond maxextent (e.g. poles), return maxextent.
+    if point.x > MAXEXTENT {
+        point.x = MAXEXTENT
+    } else if point.x < -MAXEXTENT {
+      point.x = -MAXEXTENT
+    }
+
+    if point.y > MAXEXTENT {
+      point.y = MAXEXTENT
+    } else if point.y < -MAXEXTENT {
+      point.y = -MAXEXTENT
+    }
+
+    return point
+  }
+
+  // Convert 900913 Point to Coordinate
+  func inverse(_ point: Point) -> CLLocationCoordinate2D {
+    return CLLocationCoordinate2D.init(latitude: (Double.pi * 0.5) - 2.0 * atan(exp(-point.y / A)) * R2D, longitude: point.x * R2D / A)
+  }
 }
