@@ -65,4 +65,30 @@ class SphericalMercator {
     let latitude = R2D * (2 * atan(exp(g)) - 0.5 * Double.pi)
     return CLLocationCoordinate2D.init(latitude: latitude, longitude: longitude)
   }
+
+
+  /// Convert tile xyz value to Bounds of the form
+  func bbox(x: Double, y: Double, zoom: Int, tmsStyle: Bool, srs: String) -> Bounds {
+    var _y = y
+    if tmsStyle {
+      _y = (Double(truncating: NSDecimalNumber(decimal: pow(2, zoom))) - 1) - y
+    }
+
+    let ws = ll(px: CGPoint(x: x * size, y: (+_y + 1) * size), zoom: zoom)!
+    let en = ll(px: CGPoint(x: (+x + 1) * size, y: _y * size), zoom: zoom)!
+    let bounds = Bounds(ws: ws, en: en)
+    if srs == "900913" {
+      return convert(bounds, to: "900913")
+    }
+    return bounds
+  }
+
+  /// Convert projection of given bbox
+  func convert(_ bounds: Bounds, to srs: String) -> Bounds {
+    if srs == "900913" {
+      return Bounds()
+    } else {
+      return Bounds()
+    }
+  }
 }
